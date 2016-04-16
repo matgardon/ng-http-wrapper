@@ -1,0 +1,33 @@
+{
+  "name": "ng-http-wrapper",  
+  "description": "Simple http wrapper used in most of my projects to factorize common behaviors.",
+  "version": "0.0.1",
+  "authors": [
+    "Mathis Gardon"
+  ],
+  "license": "MIT",
+  "main": [
+    "dist/js/core-api-config.model.js",
+    "dist/js/http-wrapper.service.js"
+  ],
+  "typescript": {
+    "definition": [
+      "dist/definitions/core-api-config.model.d.ts", 
+      "dist/definitions/http-wrapper.service.d.ts" 
+    ]
+  },
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components"
+  ],
+  "dependencies": {
+    "underscore": "1.x.x",
+    "angular": "1.5.x",
+    "angularjs-toaster": "2.x.x",
+    "ng-file-upload": "11.x.x"
+  },
+  "devDependencies": {
+    "angular-mocks": "1.5.x"
+  }
+}

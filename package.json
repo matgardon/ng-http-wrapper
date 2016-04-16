@@ -1,0 +1,20 @@
+{
+  "name": "bluesky.core.httpWrapper",
+  "author": "matgardon",
+  "version": "0.1.0",
+  "engines": {
+    "node": "*"
+  },
+  "private": true,
+  "dependencies": { },
+  "devDependencies": {
+    "gulp": "3.x.x",
+    "gulp-typescript": "2.x.x",
+    "gulp-sourcemaps": "1.x.x",
+    "merge2": "1.x.x",
+    "del": "2.x.x",
+    "gulp-tslint": "1.x.x",
+    "tslint": "3.x.x"
+  },
+  "_comment": "this package description file corresponds to a node package, and is only used to list the node package dependencies of this project. This enables a simple npm install to fetch the dependencies needed from npm"
+}

@@ -1,0 +1,17 @@
+﻿{
+  "compilerOptions": {
+    //"emitDecoratorMetadata": true,
+    //"experimentalDecorators": true,
+    "module": "system",
+    //"rootDir": "src",
+    "target": "es5",
+    //"outDir": "dist",
+    "declaration": true
+    //"sourceMap": true
+  },
+  "exclude": [
+    "node_modules",
+    "bower_components",
+    "dist"
+  ]
+}
