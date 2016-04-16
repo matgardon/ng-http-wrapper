@@ -310,7 +310,7 @@ module bluesky.core.services {
     }
 
     //TODO MGA : default HTTP provider configuration to improve & mutuaize with DA
-    angular.module('bluesky.core.services.httpWrapper', ['toaster', 'ngFileUpload'])
+    angular.module('ng.httpWrapper', ['toaster', 'ngFileUpload'])
         // TODO MGA : May need to be refactored to use common logic with dashboard service : see how to mutualize as much code as possible between the two
         // TODO MGA : this may not need to be a dedicated service, it can also be incorporated into the httpInterceptor. Decide best approach depending on planned use.
         .config(['$httpProvider', ($httpProvider: ng.IHttpProvider) => {
