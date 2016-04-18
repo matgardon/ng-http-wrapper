@@ -1,15 +1,23 @@
-/// <reference path="../typings/tsd.d.ts" />
+/// <reference path="_app_references.d.ts" />
 declare module bluesky.core.services {
-    import CoreApiConfig = bluesky.core.models.CoreApiConfig;
-    interface IHttpWrapperConfig extends ng.IRequestConfig {
-        coreApiEndpoint?: boolean;
+    import ApiConfig = bluesky.core.models.ApiConfig;
+    interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {
+        /**
+         * main API endpoint to use as default one if url is not full.
+         */
+        apiEndpoint?: boolean;
         file?: File;
         uploadInBase64Json?: boolean;
         uploadProgress?: () => any;
         disableXmlHttpRequestHeader?: boolean;
     }
     interface IHttpWrapperService {
-        coreApiConfig: CoreApiConfig;
+        /**
+         * All srv-side configuration of main API provided by the domain from which this script was loaded, @ the url 'CoreApiAuth/GetCoreApiConfig'.
+         * TODO MGA fix hard coded path.
+         * This configuration data is loaded upon initialization of this service (to be used as a singleton in the app). All other web calls are blocked as long as this one is not finished.
+         */
+        apiConfig: ApiConfig;
         get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
         delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
@@ -28,14 +36,19 @@ declare module bluesky.core.services {
         private Upload;
         private toaster;
         private initPromise;
-        coreApiConfig: CoreApiConfig;
+        apiConfig: ApiConfig;
         constructor($http: ng.IHttpService, $window: ng.IWindowService, $log: ng.ILogService, $q: ng.IQService, $location: ng.ILocationService, Upload: ng.angularFileUpload.IUploadService, toaster: ngtoaster.IToasterService);
-        ajax<T>(config: IHttpWrapperConfig): ng.IPromise<T>;
         get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
         delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        /**
+         * Utility method.
+         * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
+         * @param config
+         */
+        private ajax<T>(config);
         /**
         * Prepares a {@link ng#$http#config config} object for $http call.
         * The operations include setting default values when not provided, and setting http headers if needed for :

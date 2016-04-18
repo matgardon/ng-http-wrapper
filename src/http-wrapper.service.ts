@@ -1,19 +1,29 @@
-﻿///<reference path="../typings/tsd.d.ts" />
+﻿///<reference path="_app_references.ts" />
 module bluesky.core.services {
 
-    import CoreApiConfig = bluesky.core.models.CoreApiConfig;
+    import ApiConfig = bluesky.core.models.ApiConfig;
 
-    export interface IHttpWrapperConfig extends ng.IRequestConfig {
-        coreApiEndpoint?: boolean;
+    export interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {
+        /**
+         * main API endpoint to use as default one if url is not full.
+         */
+        apiEndpoint?: boolean;
         file?: File,
         uploadInBase64Json?: boolean;
         uploadProgress?: () => any;
         disableXmlHttpRequestHeader?: boolean;
     }
 
+    enum HttpMethod { GET, POST, PUT, DELETE };
+
     export interface IHttpWrapperService {
 
-        coreApiConfig: CoreApiConfig;
+        /**
+         * All srv-side configuration of main API provided by the domain from which this script was loaded, @ the url 'CoreApiAuth/GetCoreApiConfig'.
+         * TODO MGA fix hard coded path.
+         * This configuration data is loaded upon initialization of this service (to be used as a singleton in the app). All other web calls are blocked as long as this one is not finished.
+         */
+        apiConfig: ApiConfig;
 
         //TODO MGA: for following methods, return IPromise and assume abstraction or let below services handle IHttpPromises ?
 
@@ -37,7 +47,7 @@ module bluesky.core.services {
         //#region properties
 
         private initPromise: ng.IPromise<any>;
-        public coreApiConfig: CoreApiConfig;
+        public apiConfig: ApiConfig;
 
         //#endregion
 
@@ -55,11 +65,11 @@ module bluesky.core.services {
         ) {
             // init core api config data on ctor
             //TODO MGA : hard coded path for CorerApiAuthCtrl to inject
-            this.initPromise = this.$http.get<CoreApiConfig>(this.tryGetFullUrl('CoreApiAuth/GetCoreApiConfig'))
+            this.initPromise = this.$http.get<ApiConfig>(this.tryGetFullUrl('CoreApiAuth/GetCoreApiConfig'))
                 .success((coreApiConfig) => {
-                    this.coreApiConfig = coreApiConfig;
+                    this.apiConfig = coreApiConfig;
                 }).error((error) => {
-                    this.$log.error('Unable to retrieve coreAPI config. Aborting httpWrapperService initialization.');
+                    this.$log.error('Unable to retrieve API config. Aborting httpWrapperService initialization.');
                     return $q.reject(error);
                 });
         }
@@ -68,70 +78,36 @@ module bluesky.core.services {
 
         //#region public methods
 
-        ajax<T>(config: IHttpWrapperConfig) {
-            //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
-            return this.initPromise.then(() =>
-                this.$http<T>(this.configureHttpCall(config))
-                    .then<T>(this.success<T>(config.url), this.error)
-                    .finally(this.finally));
-        }
-
         get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
-
-            config = config || { method: '', url: '' };
-            config.method = 'GET';
-            config.url = url;
-
-            return this.ajax<T>(config);
+            return this.ajax<T>(this.configureHttpCall(HttpMethod.GET, url, config));
         }
 
         delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            config = config || { method: '', url: '' };
-            config.method = 'DELETE';
-            config.url = url;
-
-            return this.ajax<T>(config);
+            return this.ajax<T>(this.configureHttpCall(HttpMethod.GET, url, config));
         }
 
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            config = config || { method: '', url: '' };
-            config.method = 'POST';
-            config.url = url;
+            config = config || {};
             config.data = data;
 
-            return this.ajax<T>(config);
+            return this.ajax<T>(this.configureHttpCall(HttpMethod.POST, url, config));
         }
 
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            config = config || { method: '', url: '' };
-            config.method = 'PUT';
-            config.url = url;
+            config = config || {};
             config.data = data;
 
-            return this.ajax<T>(config);
+            return this.ajax<T>(this.configureHttpCall(HttpMethod.PUT, url, config));
         }
 
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T> {
-
-            //var url = this.coreApiConfig.coreApiUrl + 'api/file-attachment/put';
-
-            //return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
-            //    return this.$http.post<T>(url, { ElementId: 'bof', Origin: 'QuoteFileAttachment', base64StringFile: fileBase64Url }).then<T>((promise) => {
-            //        console.log('success upload');
-            //        return promise.data;
-            //    });
-            //});
 
             if (!file && (!config || !config.file)) {
                 this.$log.error('Cannot start upload with null {file} parameter.');
                 return null;
             }
 
-            config = config || { method: '', url: '' };
-            config.method = 'POST';
-            config.url = url;
-
-            config = this.configureHttpCall(config);
+            config = this.configureHttpCall(HttpMethod.POST, url, config);
 
             config.file = file || config.file; //TODO MGA : do not expose file in IHttpWrapperConfig ?
 
@@ -153,6 +129,7 @@ module bluesky.core.services {
             }
 
             return this.initPromise.then(() =>
+                //TODO MGA : not safe hard cast
                 this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>config)
                     .then<T>(this.success<T>(url), this.error, config.uploadProgress)  //TODO MGA : uploadProgress callback ok ?
                     .finally(this.finally));
@@ -163,6 +140,19 @@ module bluesky.core.services {
         //#region private methods
 
         /**
+         * Utility method.
+         * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
+         * @param config
+         */
+        private ajax<T>(config: ng.IRequestConfig) {
+            //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
+            return this.initPromise.then(() =>
+                this.$http<T>(config)
+                    .then<T>(this.success<T>(config.url), this.error)
+                    .finally(this.finally));
+        }
+
+        /**
         * Prepares a {@link ng#$http#config config} object for $http call.
         * The operations include setting default values when not provided, and setting http headers if needed for :
         *  - Ajax calls
@@ -171,44 +161,52 @@ module bluesky.core.services {
         * @param options
         * @returns {ng.$http.config} the configuration object ready to be injected into a $http call. 
         */
-        private configureHttpCall = (config: IHttpWrapperConfig): ng.IRequestConfig => {
+        private configureHttpCall = (method: HttpMethod, url: string, config: IHttpWrapperConfig): ng.IRequestConfig => {
 
-            if (!config.url || !config.method) {
+            if (!url || !method) {
                 this.$log.error("URL & METHOD parameters are necessary for httpWrapper calls. Aborting.");
                 return null;
             }
 
-            if (config.coreApiEndpoint && (!this.coreApiConfig ||
-                !this.coreApiConfig.jwtToken ||
-                !this.coreApiConfig.currentUserRole)) {
+            //TODO MGA: hard cast is not safe, we may forget to set url & method parameters. TOFIX.
+            // automatically get all non-filtered parameters & keep them for this new object.
+            var configFull = <ng.IRequestConfig>config;
+
+            //TODO MGA: support mapping between upload & post here ?
+            configFull.method = method.toString();
+            configFull.url = url;
+
+            if (config.apiEndpoint && (!this.apiConfig ||
+                !this.apiConfig.jwtToken ||
+                !this.apiConfig.currentUserRole)) {
                 this.$log.error('[InternalError] coreApi call intended without necessary capi credentials. Aborting.');
                 return null;
             }
 
-            config.headers = config.headers || {};
+            configFull.headers = config.headers || {};
 
-            //TODO MGA : core api endpoint 'api/' hardcoded, to put in config ! should not know that here.
-            if (!config.coreApiEndpoint) { // if not set, evaluates to false
-                config.url = this.tryGetFullUrl(config.url);
+            if (!config.apiEndpoint) { // if not set, evaluates to false
+                configFull.url = this.tryGetFullUrl(url);
             } else {
-                config.url = this.coreApiConfig.coreApiUrl + 'api/' + config.url;
+                //TODO MGA : core api endpoint 'api/' hardcoded, to put in configFull ! should not know that here.
+                configFull.url = this.apiConfig.coreApiUrl + 'api/' + url;
 
-                if (this.coreApiConfig.jwtToken && this.coreApiConfig.currentUserRole) {
+                if (this.apiConfig.jwtToken && this.apiConfig.currentUserRole) {
                     //TODO MGA: hard coded headers, not good, to inject
-                    config.headers['OA-UserRole'] = this.coreApiConfig.currentUserRole;
-                    config.headers['Authorization'] = 'Bearer ' + this.coreApiConfig.jwtToken;
+                    configFull.headers['OA-UserRole'] = this.apiConfig.currentUserRole;
+                    configFull.headers['Authorization'] = 'Bearer ' + this.apiConfig.jwtToken;
                 }
             }
 
             if (!config.disableXmlHttpRequestHeader) // if not set, evaluates to false
-                config.headers['X-Requested-With'] = 'XMLHttpRequest';
+                configFull.headers['X-Requested-With'] = 'XMLHttpRequest';
 
             //TODO MGA: OE specific code, to remove
             if ((<any>this.$window).preventBlockUI !== undefined)
                 // TODO MGA : type casting, is it okay or not ? better approach ?
                 (<any>this.$window).preventBlockUI = true;
 
-            return config;
+            return configFull;
         }
 
         /**

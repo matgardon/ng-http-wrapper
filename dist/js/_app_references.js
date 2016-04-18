@@ -1,0 +1,5 @@
+/// <reference path="../typings/tsd.d.ts" />
+/// <reference path="api-config.model.ts" />
+/// <reference path="http-wrapper.service.ts" />
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIl9hcHBfcmVmZXJlbmNlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSw0Q0FBNEM7QUFDNUMsNENBQTRDO0FBQzVDLGdEQUFnRCIsImZpbGUiOiJfYXBwX3JlZmVyZW5jZXMuanMiLCJzb3VyY2VzQ29udGVudCI6WyIvLy8gPHJlZmVyZW5jZSBwYXRoPVwiLi4vdHlwaW5ncy90c2QuZC50c1wiIC8+XHJcbi8vLyA8cmVmZXJlbmNlIHBhdGg9XCJhcGktY29uZmlnLm1vZGVsLnRzXCIgLz5cclxuLy8vIDxyZWZlcmVuY2UgcGF0aD1cImh0dHAtd3JhcHBlci5zZXJ2aWNlLnRzXCIgLz5cclxuIl0sInNvdXJjZVJvb3QiOiIvc291cmNlLyJ9
