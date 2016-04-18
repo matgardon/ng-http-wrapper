@@ -5,7 +5,7 @@ var gulp = require('gulp'),
     sourcemaps = require('gulp-sourcemaps'),
     tslint = require('gulp-tslint'),
     del = require('del'),
-    merge = require('merge2');  // Require separate installation
+    merge = require('merge2');
 
 var tsProject = ts.createProject('tsconfig.json');
 
@@ -16,6 +16,7 @@ gulp.task('clean-ts', function (cb) {
     del(['dist/**/*.js', 'dist/**/*.js.map', 'dist/**/*.d.ts'], cb);
 });
 
+//TODO MGA: fix ts-lint task
 gulp.task('ts-lint', function () {
     return gulp.src([tsSrc]).pipe(tslint()).pipe(tslint.report('verbose'));
     //return gulp.src(tsSrc).pipe(tslint({ configuration: require("./tslint.json")})).pipe(tslint.report('prose'));

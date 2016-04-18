@@ -6,6 +6,7 @@ module bluesky.core.models {
     export class CoreApiConfig {
         constructor(
             public coreApiUrl: string,
+            //TODO MGA : to inject as generic list of custom headers to pass to $http service ?
             public jwtToken: string,
             public currentUserRole: string
         ) { }

@@ -1,20 +1,24 @@
 /// <reference path="../typings/tsd.d.ts" />
 declare module bluesky.core.services {
     import CoreApiConfig = bluesky.core.models.CoreApiConfig;
+    interface IHttpWrapperConfig extends ng.IRequestConfig {
+        coreApiEndpoint?: boolean;
+        file?: File;
+        uploadInBase64Json?: boolean;
+        uploadProgress?: () => any;
+        disableXmlHttpRequestHeader?: boolean;
+    }
     interface IHttpWrapperService {
         coreApiConfig: CoreApiConfig;
-        get<T>(url: string, coreApiEndpoint?: boolean): ng.IPromise<T>;
-        post<T>(url: string, data: any, coreApiEndpoint?: boolean): ng.IPromise<T>;
-        /**
-         * TODO MGA improve typing with angular-upload tsd etc
-         * @param url
-         * @param file
-         * @param uploadProgress
-         * @returns {}
-         */
-        upload<T>(url: string, file: any, uploadProgress: () => any, coreApiEndpoint?: boolean, encodeBase64?: boolean): ng.IPromise<T>;
-        tryGetFullUrl(urlInput: string): string;
+        get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
     }
+    /**
+     * TODO MGA : this may not need to be a dedicated service, it can also be incorporated into the httpInterceptor. Decide best approach depending on planned use.
+     */
     class HttpWrapperService implements IHttpWrapperService {
         private $http;
         private $window;
@@ -23,20 +27,15 @@ declare module bluesky.core.services {
         private $location;
         private Upload;
         private toaster;
-        private mainPromise;
+        private initPromise;
         coreApiConfig: CoreApiConfig;
         constructor($http: ng.IHttpService, $window: ng.IWindowService, $log: ng.ILogService, $q: ng.IQService, $location: ng.ILocationService, Upload: ng.angularFileUpload.IUploadService, toaster: ngtoaster.IToasterService);
-        get<T>(url: string, coreApiEndpoint?: boolean): ng.IPromise<T>;
-        post<T>(url: string, data: any, coreApiEndpoint?: boolean): ng.IPromise<T>;
-        /**
-         * TODO MGA : mutualize behavior with configureHttpCall for config !
-         * @param url
-         * @param file
-         * @param uploadProgress
-         * @returns {}
-         */
-        upload<T>(url: string, file: File, uploadProgress: () => any, coreApiEndpoint?: boolean, encodeBase64?: boolean): ng.IPromise<T>;
-        tryGetFullUrl(urlInput: string): string;
+        ajax<T>(config: IHttpWrapperConfig): ng.IPromise<T>;
+        get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
         /**
         * Prepares a {@link ng#$http#config config} object for $http call.
         * The operations include setting default values when not provided, and setting http headers if needed for :
@@ -65,7 +64,8 @@ declare module bluesky.core.services {
          * @param response
          */
         private finally;
-        private getCurrentSessionID();
+        private tryGetFullUrl(urlInput);
         private getUrlPath(actionIsOnSameController);
+        private getCurrentSessionID();
     }
 }

@@ -3,32 +3,40 @@ module bluesky.core.services {
 
     import CoreApiConfig = bluesky.core.models.CoreApiConfig;
 
-    export interface IHttpWrapperService {
-
-        //TODO MGA : to inject as generic list of custom headers to pass to service ?
-        coreApiConfig: CoreApiConfig;
-
-        get<T>(url: string, coreApiEndpoint?: boolean): ng.IPromise<T>;
-
-        post<T>(url: string, data: any, coreApiEndpoint?: boolean): ng.IPromise<T>;
-
-        /**
-         * TODO MGA improve typing with angular-upload tsd etc
-         * @param url 
-         * @param file 
-         * @param uploadProgress 
-         * @returns {} 
-         */
-        upload<T>(url: string, file: any, uploadProgress: () => any, coreApiEndpoint?: boolean, encodeBase64?: boolean): ng.IPromise<T>;
-
-        tryGetFullUrl(urlInput: string): string;
+    export interface IHttpWrapperConfig extends ng.IRequestConfig {
+        coreApiEndpoint?: boolean;
+        file?: File,
+        uploadInBase64Json?: boolean;
+        uploadProgress?: () => any;
+        disableXmlHttpRequestHeader?: boolean;
     }
 
+    export interface IHttpWrapperService {
+
+        coreApiConfig: CoreApiConfig;
+
+        //TODO MGA: for following methods, return IPromise and assume abstraction or let below services handle IHttpPromises ?
+
+        get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+
+        delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T>;
+
+        post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+
+        put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
+
+        //TODO MGA improve typing with angular-upload tsd etc
+        upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+    }
+
+    /**
+     * TODO MGA : this may not need to be a dedicated service, it can also be incorporated into the httpInterceptor. Decide best approach depending on planned use.
+     */
     export class HttpWrapperService implements IHttpWrapperService {
 
         //#region properties
 
-        private mainPromise: ng.IPromise<any>;
+        private initPromise: ng.IPromise<any>;
         public coreApiConfig: CoreApiConfig;
 
         //#endregion
@@ -45,99 +53,109 @@ module bluesky.core.services {
             private Upload: ng.angularFileUpload.IUploadService,
             private toaster: ngtoaster.IToasterService
         ) {
-
-            //TODO MGA : how to prevent rest of calls to happen if this is not finished ?
             // init core api config data on ctor
-            this.mainPromise = this.$http.get<CoreApiConfig>(this.tryGetFullUrl('CoreApiAuth/GetCoreApiConfig')).then((result) => {
-                this.coreApiConfig = result.data;
-            });
+            //TODO MGA : hard coded path for CorerApiAuthCtrl to inject
+            this.initPromise = this.$http.get<CoreApiConfig>(this.tryGetFullUrl('CoreApiAuth/GetCoreApiConfig'))
+                .success((coreApiConfig) => {
+                    this.coreApiConfig = coreApiConfig;
+                }).error((error) => {
+                    this.$log.error('Unable to retrieve coreAPI config. Aborting httpWrapperService initialization.');
+                    return $q.reject(error);
+                });
         }
 
         //#endregion
 
         //#region public methods
 
-        get<T>(url: string, coreApiEndpoint?: boolean): ng.IPromise<T> {
-            //TODO MGA : improve mainPromise behavior !
-            if (this.mainPromise) {
-                return this.mainPromise.then(() => this.$http<T>(this.configureHttpCall('GET', url, coreApiEndpoint)).then<T>(this.success<T>(url), this.error).finally(this.finally));
-            } else {
-                return this.$http<T>(this.configureHttpCall('GET', url, coreApiEndpoint)).then<T>(this.success<T>(url), this.error).finally(this.finally);
-            }
+        ajax<T>(config: IHttpWrapperConfig) {
+            //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
+            return this.initPromise.then(() =>
+                this.$http<T>(this.configureHttpCall(config))
+                    .then<T>(this.success<T>(config.url), this.error)
+                    .finally(this.finally));
         }
 
-        post<T>(url: string, data: any, coreApiEndpoint?: boolean): ng.IPromise<T> {
-            if (this.mainPromise) {
-                return this.mainPromise.then(() => this.$http<T>(this.configureHttpCall('POST', url, data, coreApiEndpoint)).then<T>(this.success<T>(url), this.error).finally(this.finally));
-            } else {
-                return this.$http<T>(this.configureHttpCall('POST', url, data, coreApiEndpoint)).then<T>(this.success<T>(url), this.error).finally(this.finally);
-            }
+        get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
+
+            config = config || { method: '', url: '' };
+            config.method = 'GET';
+            config.url = url;
+
+            return this.ajax<T>(config);
         }
 
-        /**
-         * TODO MGA : mutualize behavior with configureHttpCall for config !
-         * @param url 
-         * @param file 
-         * @param uploadProgress 
-         * @returns {} 
-         */
-        upload<T>(url: string, file: File, uploadProgress: () => any, coreApiEndpoint?: boolean, encodeBase64?: boolean): ng.IPromise<T> {
-            if (!url) {
-                throw new Error('url param is mandatory for httpWrapperService call');
+        delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
+            config = config || { method: '', url: '' };
+            config.method = 'DELETE';
+            config.url = url;
+
+            return this.ajax<T>(config);
+        }
+
+        post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
+            config = config || { method: '', url: '' };
+            config.method = 'POST';
+            config.url = url;
+            config.data = data;
+
+            return this.ajax<T>(config);
+        }
+
+        put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
+            config = config || { method: '', url: '' };
+            config.method = 'PUT';
+            config.url = url;
+            config.data = data;
+
+            return this.ajax<T>(config);
+        }
+
+        upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T> {
+
+            //var url = this.coreApiConfig.coreApiUrl + 'api/file-attachment/put';
+
+            //return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
+            //    return this.$http.post<T>(url, { ElementId: 'bof', Origin: 'QuoteFileAttachment', base64StringFile: fileBase64Url }).then<T>((promise) => {
+            //        console.log('success upload');
+            //        return promise.data;
+            //    });
+            //});
+
+            if (!file && (!config || !config.file)) {
+                this.$log.error('Cannot start upload with null {file} parameter.');
+                return null;
             }
-            if (!file) {
-                throw new Error('file param is mandatory for upload method');
-            }
 
+            config = config || { method: '', url: '' };
+            config.method = 'POST';
+            config.url = url;
 
-            var url = this.coreApiConfig.coreApiUrl + 'api/file-attachment/put';
+            config = this.configureHttpCall(config);
 
-            return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
-                return this.$http.post<T>(url, { ElementId: 'bof', Origin: 'QuoteFileAttachment', base64StringFile: fileBase64Url }).then<T>((promise) => {
-                    console.log('success upload');
-                    return promise.data;
+            config.file = file || config.file; //TODO MGA : do not expose file in IHttpWrapperConfig ?
+
+            if (config.uploadInBase64Json) {
+                this.initPromise.then(() => {
+                    //TODO MGA: make sure this delays next call and upload is not done before base64 encoding is finished, even if promise is already resolved ???
+                    return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
+                        //TODO MGA: decide best behavior ? upload takes url params for target & file as payload ?
+                        config.data = config.data || {};
+                        config.data.fileBase64Url = fileBase64Url;
+                    });
                 });
-            });
-
-            //var uploadConfig = {
-            //    url: this.tryGetFullUrl(url),
-            //    data: {
-            //        file: file, // single file or a list of files. list is only for html5
-            //        //fileName: 'doc.jpg' or ['1.jpg', '2.jpg', ...] // to modify the name of the file(s)
-            //        fileFormDataName: 'file' // file formData name ('Content-Disposition'), server side request form name
-            //    },
-            //    method: 'POST' //TODO MGA: should not be necessary, default on FileUploadConfigFile signature, to propose as pull-request
-            //};
-
-            //if (this.mainPromise) {
-            //    return this.mainPromise.then(() => this.Upload.upload<T>(uploadConfig).then<T>(this.success<T>(url), this.error, uploadProgress).finally(this.finally));
-            //} else {
-            //    return this.Upload.upload<T>(uploadConfig).then<T>(this.success<T>(url), this.error, uploadProgress).finally(this.finally);
-            //}
-        }
-
-        //TODO MGA : method to document and improve robustness + use in OE outside of angular // mutualize
-        // Tries to parse the input url :
-        // If it seems to be a full URL, then return as is (considers it external Url)
-        // Otherwise, tries to find the base URL of the current BlueSky app with or without the included Controller and returns the full Url
-        tryGetFullUrl(urlInput: string): string {
-            // Url starts with http:// or https:// => leave as this
-            if (urlInput.slice(0, 'http://'.length) === 'http://' ||
-                urlInput.slice(0, 'https://'.length) === 'https://') {
-                return urlInput;
+            } else {
+                config.data = {
+                    file: file, // single file or a list of files. list is only for html5
+                    //fileName: 'doc.jpg' or ['1.jpg', '2.jpg', ...] // to modify the name of the file(s)
+                    fileFormDataName: 'file' // file formData name ('Content-Disposition'), server side request form name
+                };
             }
 
-            // Boolean used to try to determine correct full url (add / or not before the url fragment depending on if found or not)
-            var urlFragmentStartsWithSlash = urlInput.slice(0, '/'.length) === '/';
-
-            // Regex trying to determine if the input fragment contains a / between two character suites => controller given as input, otherwise, action on same controller expected
-            var controllerIsPresentRegex = /\w+\/\w+/;
-
-            var actionIsOnSameController = !controllerIsPresentRegex.test(urlInput);
-
-            var baseUrl = this.getUrlPath(actionIsOnSameController);
-
-            return baseUrl + (urlFragmentStartsWithSlash ? urlInput : ('/' + urlInput));
+            return this.initPromise.then(() =>
+                this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>config)
+                    .then<T>(this.success<T>(url), this.error, config.uploadProgress)  //TODO MGA : uploadProgress callback ok ?
+                    .finally(this.finally));
         }
 
         //#endregion
@@ -153,46 +171,44 @@ module bluesky.core.services {
         * @param options
         * @returns {ng.$http.config} the configuration object ready to be injected into a $http call. 
         */
-        private configureHttpCall = (method: string, url: string, coreApiEndpoint: boolean = false, data?: any, inputConfig?: ng.IRequestShortcutConfig): ng.IRequestConfig => {
+        private configureHttpCall = (config: IHttpWrapperConfig): ng.IRequestConfig => {
 
-            if (!url) {
-                this.$log.error("URL parameter is necessary for httpWrapper calls. Aborting.");
+            if (!config.url || !config.method) {
+                this.$log.error("URL & METHOD parameters are necessary for httpWrapper calls. Aborting.");
                 return null;
             }
 
-            if (coreApiEndpoint && !this.coreApiConfig) {
-                this.$log.error('InternalError: coreApi call intended without necessary capi credentials. Aborting.');
+            if (config.coreApiEndpoint && (!this.coreApiConfig ||
+                !this.coreApiConfig.jwtToken ||
+                !this.coreApiConfig.currentUserRole)) {
+                this.$log.error('[InternalError] coreApi call intended without necessary capi credentials. Aborting.');
                 return null;
             }
 
-            var requestConfig = {
-                //TODO MGA : core api endpoint 'api/' hardcoded, to put in config ! should not now that here.
-                url: coreApiEndpoint ? this.coreApiConfig.coreApiUrl + 'api/' + url : this.tryGetFullUrl(url),
-                method: method || 'GET', // Supported methods are the same as $http + TODO MGA support keyword 'upload' from OE & merge code
-                params: inputConfig != null ? inputConfig.params : null, //TODO MGA : null or undefined ?
-                data: data || null,
-                headers: {}
-            };
+            config.headers = config.headers || {};
 
-            if (coreApiEndpoint) {
-                if (this.coreApiConfig.jwtToken && this.coreApiConfig.currentUserRole) {
-                    requestConfig.headers['OA-UserRole'] = this.coreApiConfig.currentUserRole;
-                    requestConfig.headers['Authorization'] = 'Bearer ' + this.coreApiConfig.jwtToken;
-                } else {
-                    //TODO MGA !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                }
+            //TODO MGA : core api endpoint 'api/' hardcoded, to put in config ! should not know that here.
+            if (!config.coreApiEndpoint) { // if not set, evaluates to false
+                config.url = this.tryGetFullUrl(config.url);
             } else {
-                //TODO MGA : wait for data to be populated if ongoing call, otherwise call Ctrl ?
+                config.url = this.coreApiConfig.coreApiUrl + 'api/' + config.url;
+
+                if (this.coreApiConfig.jwtToken && this.coreApiConfig.currentUserRole) {
+                    //TODO MGA: hard coded headers, not good, to inject
+                    config.headers['OA-UserRole'] = this.coreApiConfig.currentUserRole;
+                    config.headers['Authorization'] = 'Bearer ' + this.coreApiConfig.jwtToken;
+                }
             }
 
-            // TODO MGA : type casting, is it okay or not ? better approach ?
-            (<any>this.$window).preventBlockUI = true;
+            if (!config.disableXmlHttpRequestHeader) // if not set, evaluates to false
+                config.headers['X-Requested-With'] = 'XMLHttpRequest';
 
-            //TODO MGA : currently done in module configuration on module init, using httpProvider.defaults/ To discuss where to set this up
-            //TODO MGA : set this always or only for WebAPI calls ?
-            //requestConfig.headers['X-Requested-With'] = 'XMLHttpRequest';
+            //TODO MGA: OE specific code, to remove
+            if ((<any>this.$window).preventBlockUI !== undefined)
+                // TODO MGA : type casting, is it okay or not ? better approach ?
+                (<any>this.$window).preventBlockUI = true;
 
-            return requestConfig;
+            return config;
         }
 
         /**
@@ -250,37 +266,34 @@ module bluesky.core.services {
          * @param response
          */
         private finally = (): void => {
-            // TODO MGA : type casting, is it okay or not ? better approach ?
-            (<any>this.$window).preventBlockUI = false;
+            //TODO MGA: OE-specific code
+            if ((<any>this.$window).preventBlockUI !== undefined)
+                // TODO MGA : type casting, is it okay or not ? better approach ?
+                (<any>this.$window).preventBlockUI = false;
         }
 
-        private getCurrentSessionID() {
-
-            //TODO MGA : magic regexp to fetch SessionID in URL, to store elsewhere !
-            var sessionRegex = /https:\/\/[\w.]+\/OrderEntry\/(\(S\(\w+\)\))\/.*/;
-
-            // TODO MGA : update regexp to the one below
-            //var baseUrlRegex = /(https:\/\/[\w.-]+\/[\w.-]+\/\(S\(\w+\)\)\/)\w+/;
-
-
-            var path = this.$location.absUrl();
-
-            var regexpArray = sessionRegex.exec(path);
-
-            if (!regexpArray) {
-                this.$log.error("Unable to recognized searched pattern in current url location to retrieve sessionID.");
-                return "";
-            }
-            if (regexpArray.length === 1) {
-                this.$log.error("Unable to find sessionID in searched pattern in current url.");
-                return "";
-            }
-            if (regexpArray.length > 2) {
-                this.$log.error("Too many matches found for the sessionID search in the current url.");
-                return "";
+        //TODO MGA : method to document and improve robustness + use in OE outside of angular // mutualize
+        // Tries to parse the input url :
+        // If it seems to be a full URL, then return as is (considers it external Url)
+        // Otherwise, tries to find the base URL of the current BlueSky app with or without the included Controller and returns the full Url
+        private tryGetFullUrl(urlInput: string): string {
+            // Url starts with http:// or https:// => leave as this
+            if (urlInput.slice(0, 'http://'.length) === 'http://' ||
+                urlInput.slice(0, 'https://'.length) === 'https://') {
+                return urlInput;
             }
 
-            return regexpArray[1];
+            // Boolean used to try to determine correct full url (add / or not before the url fragment depending on if found or not)
+            var urlFragmentStartsWithSlash = urlInput.slice(0, '/'.length) === '/';
+
+            // Regex trying to determine if the input fragment contains a / between two character suites => controller given as input, otherwise, action on same controller expected
+            var controllerIsPresentRegex = /\w+\/\w+/;
+
+            var actionIsOnSameController = !controllerIsPresentRegex.test(urlInput);
+
+            var baseUrl = this.getUrlPath(actionIsOnSameController);
+
+            return baseUrl + (urlFragmentStartsWithSlash ? urlInput : ('/' + urlInput));
         }
 
         // TODO MGA : using method from Layout.js : to document to not handle duplicate code !!
@@ -306,15 +319,44 @@ module bluesky.core.services {
             return '';
         }
 
+        //TODO MGA: OM-specific ASP MVC code, not used ATM, to remove
+        private getCurrentSessionID() {
+
+            //TODO MGA : magic regexp to fetch SessionID in URL, to store elsewhere !
+            var sessionRegex = /https:\/\/[\w.]+\/[\w.]+\/(\(S\(\w+\)\))\/.*/;
+            //var sessionRegex = /https:\/\/[\w.]+\/OrderEntry\/(\(S\(\w+\)\))\/.*/;
+
+            // TODO MGA : update regexp to the one below
+            //var baseUrlRegex = /(https:\/\/[\w.-]+\/[\w.-]+\/\(S\(\w+\)\)\/)\w+/;
+
+
+            var path = this.$location.absUrl();
+
+            var regexpArray = sessionRegex.exec(path);
+
+            if (!regexpArray) {
+                this.$log.error("Unable to recognized searched pattern in current url location to retrieve sessionID.");
+                return "";
+            }
+            if (regexpArray.length === 1) {
+                this.$log.error("Unable to find sessionID in searched pattern in current url.");
+                return "";
+            }
+            if (regexpArray.length > 2) {
+                this.$log.error("Too many matches found for the sessionID search in the current url.");
+                return "";
+            }
+
+            return regexpArray[1];
+        }
+
         //#endregion
     }
 
-    //TODO MGA : default HTTP provider configuration to improve & mutuaize with DA
     angular.module('ng.httpWrapper', ['toaster', 'ngFileUpload'])
-        // TODO MGA : May need to be refactored to use common logic with dashboard service : see how to mutualize as much code as possible between the two
-        // TODO MGA : this may not need to be a dedicated service, it can also be incorporated into the httpInterceptor. Decide best approach depending on planned use.
-        .config(['$httpProvider', ($httpProvider: ng.IHttpProvider) => {
-            $httpProvider.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-        }])
+        // done in configureHttpCall method.
+        //.config(['$httpProvider', ($httpProvider: ng.IHttpProvider) => {
+        //    $httpProvider.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+        //}])
         .service('httpWrapperService', HttpWrapperService);
 }
