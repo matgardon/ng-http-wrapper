@@ -157,12 +157,15 @@ module bluesky.core.services {
         * @param options
         * @returns {ng.$http.config} the configuration object ready to be injected into a $http call. 
         */
-        private configureHttpCall = (method: HttpMethod, url: string, config: IHttpWrapperConfig): ng.IRequestConfig => {
+        private configureHttpCall = (method: HttpMethod, url: string, config?: IHttpWrapperConfig): ng.IRequestConfig => {
 
             if (!url || method === null || method === undefined) {
                 this.$log.error("URL & METHOD parameters are necessary for httpWrapper calls. Aborting.");
                 return null;
             }
+
+            //Init config even if not provided
+            config = config || {};
 
             //TODO MGA: hard cast is not safe, we may forget to set url & method parameters. TOFIX.
             // automatically get all non-filtered parameters & keep them for this new object.
@@ -170,7 +173,6 @@ module bluesky.core.services {
 
             //TODO MGA: support mapping between upload & post here ?
             configFull.method = HttpMethod[method];
-            configFull.url = url;
 
             if (config.apiEndpoint && (!this.apiConfig ||
                 !this.apiConfig.jwtToken ||
