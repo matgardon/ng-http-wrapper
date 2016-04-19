@@ -1,4 +1,4 @@
-﻿///<reference path="_app_references.ts" />
+﻿///<reference path="../typings/tsd.d.ts" />
 module bluesky.core.services {
 
     import ApiConfig = bluesky.core.models.ApiConfig;
@@ -107,34 +107,27 @@ module bluesky.core.services {
 
             config = config || {};
             config.file = file || config.file; //TODO MGA : do not expose file in IHttpWrapperConfig ?
+            config.data = config.data || {};
 
-            this.initPromise.then(() => {
-                config = this.configureHttpCall(HttpMethod.POST, url, config);
+            if (config.uploadInBase64Json) {
+                //TODO MGA: make sure this delays next call and upload is not done before base64 encoding is finished, even if promise is already resolved ???
+                return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
+                    //TODO MGA: hard-coded key to fetch base64 encoding, to parametrize with server-side !
+                    config.data.fileBase64Url = fileBase64Url;
+                    //normal post in case of base64-encoded data
+                    return this.ajax<T>(HttpMethod.POST, url, config);
+                });
+            } else {
+                config.data.fileFormDataName = 'file'; // file formData name ('Content-Disposition'), server side request form name
 
-                if (config.uploadInBase64Json) {
-                    //TODO MGA: make sure this delays next call and upload is not done before base64 encoding is finished, even if promise is already resolved ???
-                    return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
-                        //TODO MGA: decide best behavior ? upload takes url params for target & file as payload ?
-                        config.data = config.data || {};
-                        config.data.fileBase64Url = fileBase64Url;
-
-                        return config;
-                    });
-                } else {
-                    config.data = {
-                        file: file, // single file or a list of files. list is only for html5
-                        //fileName: 'doc.jpg' or ['1.jpg', '2.jpg', ...] // to modify the name of the file(s)
-                        fileFormDataName: 'file' // file formData name ('Content-Disposition'), server side request form name
-                    };
-                    return config;
-                }
-            }).then((config) => {
-                //TODO MGA : not safe hard cast
-                return this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>config)
-                    .then<T>(this.success<T>(url), this.error, config.uploadProgress) //TODO MGA : uploadProgress callback ok ?
-                    .finally(this.finally);
-            });
-
+                return this.initPromise.then(() => {
+                    //TODO MGA : not safe hard cast
+                    //TODO MGA : behavior duplication with this.ajax, not DRY, to improve
+                    return this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>this.configureHttpCall(HttpMethod.POST, url, config))
+                                      .then<T>(this.success<T>(url), this.error, config.uploadProgress) //TODO MGA : uploadProgress callback ok ?
+                                      .finally(this.finally);
+                });
+            }
         }
 
         //#endregion
@@ -148,10 +141,11 @@ module bluesky.core.services {
          */
         private ajax<T>(method: HttpMethod, url: string, config?: IHttpWrapperConfig) {
             //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
-            return this.initPromise.then(() =>
-                this.$http<T>(this.configureHttpCall(HttpMethod.GET, url, config))
-                    .then<T>(this.success<T>(url), this.error)
-                    .finally(this.finally));
+            return this.initPromise.then(() => {
+                return this.$http<T>(this.configureHttpCall(method, url, config))
+                           .then<T>(this.success<T>(url), this.error)
+                           .finally(this.finally);
+            });
         }
 
         /**

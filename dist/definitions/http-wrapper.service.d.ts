@@ -1,4 +1,4 @@
-/// <reference path="_app_references.d.ts" />
+/// <reference path="../typings/tsd.d.ts" />
 declare module bluesky.core.services {
     import ApiConfig = bluesky.core.models.ApiConfig;
     interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {

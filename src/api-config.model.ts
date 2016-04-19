@@ -1,5 +1,4 @@
-﻿///<reference path="_app_references.ts" />
-module bluesky.core.models {
+﻿module bluesky.core.models {
     /**
      * TODO MGA : export an interface too ?
      */
