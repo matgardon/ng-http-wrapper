@@ -48,7 +48,7 @@ declare module bluesky.core.services {
          * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
          * @param config
          */
-        private ajax<T>(config);
+        private ajax<T>(method, url, config?);
         /**
         * Prepares a {@link ng#$http#config config} object for $http call.
         * The operations include setting default values when not provided, and setting http headers if needed for :

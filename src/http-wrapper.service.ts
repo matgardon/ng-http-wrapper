@@ -79,25 +79,23 @@ module bluesky.core.services {
         //#region public methods
 
         get<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            return this.ajax<T>(this.configureHttpCall(HttpMethod.GET, url, config));
+            return this.ajax<T>(HttpMethod.GET, url, config);
         }
 
         delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            return this.ajax<T>(this.configureHttpCall(HttpMethod.GET, url, config));
+            return this.ajax<T>(HttpMethod.GET, url, config);
         }
 
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
             config = config || {};
-            config.data = data;
-
-            return this.ajax<T>(this.configureHttpCall(HttpMethod.POST, url, config));
+            config.data = data || config.data;;
+            return this.ajax<T>(HttpMethod.POST, url, config);
         }
 
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
             config = config || {};
-            config.data = data;
-
-            return this.ajax<T>(this.configureHttpCall(HttpMethod.PUT, url, config));
+            config.data = data || config.data;
+            return this.ajax<T>(HttpMethod.PUT, url, config);
         }
 
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T> {
@@ -107,32 +105,36 @@ module bluesky.core.services {
                 return null;
             }
 
-            config = this.configureHttpCall(HttpMethod.POST, url, config);
-
+            config = config || {};
             config.file = file || config.file; //TODO MGA : do not expose file in IHttpWrapperConfig ?
 
-            if (config.uploadInBase64Json) {
-                this.initPromise.then(() => {
+            this.initPromise.then(() => {
+                config = this.configureHttpCall(HttpMethod.POST, url, config);
+
+                if (config.uploadInBase64Json) {
                     //TODO MGA: make sure this delays next call and upload is not done before base64 encoding is finished, even if promise is already resolved ???
                     return this.Upload.base64DataUrl(file).then((fileBase64Url) => {
                         //TODO MGA: decide best behavior ? upload takes url params for target & file as payload ?
                         config.data = config.data || {};
                         config.data.fileBase64Url = fileBase64Url;
-                    });
-                });
-            } else {
-                config.data = {
-                    file: file, // single file or a list of files. list is only for html5
-                    //fileName: 'doc.jpg' or ['1.jpg', '2.jpg', ...] // to modify the name of the file(s)
-                    fileFormDataName: 'file' // file formData name ('Content-Disposition'), server side request form name
-                };
-            }
 
-            return this.initPromise.then(() =>
+                        return config;
+                    });
+                } else {
+                    config.data = {
+                        file: file, // single file or a list of files. list is only for html5
+                        //fileName: 'doc.jpg' or ['1.jpg', '2.jpg', ...] // to modify the name of the file(s)
+                        fileFormDataName: 'file' // file formData name ('Content-Disposition'), server side request form name
+                    };
+                    return config;
+                }
+            }).then((config) => {
                 //TODO MGA : not safe hard cast
-                this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>config)
-                    .then<T>(this.success<T>(url), this.error, config.uploadProgress)  //TODO MGA : uploadProgress callback ok ?
-                    .finally(this.finally));
+                return this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>config)
+                    .then<T>(this.success<T>(url), this.error, config.uploadProgress) //TODO MGA : uploadProgress callback ok ?
+                    .finally(this.finally);
+            });
+
         }
 
         //#endregion
@@ -144,11 +146,11 @@ module bluesky.core.services {
          * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
          * @param config
          */
-        private ajax<T>(config: ng.IRequestConfig) {
+        private ajax<T>(method: HttpMethod, url: string, config?: IHttpWrapperConfig) {
             //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
             return this.initPromise.then(() =>
-                this.$http<T>(config)
-                    .then<T>(this.success<T>(config.url), this.error)
+                this.$http<T>(this.configureHttpCall(HttpMethod.GET, url, config))
+                    .then<T>(this.success<T>(url), this.error)
                     .finally(this.finally));
         }
 
@@ -163,7 +165,7 @@ module bluesky.core.services {
         */
         private configureHttpCall = (method: HttpMethod, url: string, config: IHttpWrapperConfig): ng.IRequestConfig => {
 
-            if (!url || !method) {
+            if (!url || method === null || method === undefined) {
                 this.$log.error("URL & METHOD parameters are necessary for httpWrapper calls. Aborting.");
                 return null;
             }
@@ -173,7 +175,7 @@ module bluesky.core.services {
             var configFull = <ng.IRequestConfig>config;
 
             //TODO MGA: support mapping between upload & post here ?
-            configFull.method = method.toString();
+            configFull.method = HttpMethod[method];
             configFull.url = url;
 
             if (config.apiEndpoint && (!this.apiConfig ||
