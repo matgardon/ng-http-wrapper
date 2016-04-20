@@ -83,7 +83,7 @@ module bluesky.core.services {
         }
 
         delete<T>(url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
-            return this.ajax<T>(HttpMethod.GET, url, config);
+            return this.ajax<T>(HttpMethod.DELETE, url, config);
         }
 
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T> {
