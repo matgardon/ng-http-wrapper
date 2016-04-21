@@ -22,6 +22,7 @@ declare module bluesky.core.services {
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        buildUrlFromContext(urlInput: string): string;
     }
     /**
      * TODO MGA : this may not need to be a dedicated service, it can also be incorporated into the httpInterceptor. Decide best approach depending on planned use.
@@ -42,6 +43,13 @@ declare module bluesky.core.services {
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        /**
+         * Tries to parse the input url :
+         * If it seems to be a full URL, then return as is (considers it external Url)
+         * Otherwise, tries to find the base URL of the current BlueSky app with or without the included Controller and returns the full Url
+         * @param urlInput : TODO MGA: document different kind of urls that this method can take as input (full, partial etc)
+         */
+        buildUrlFromContext(urlInput: string): string;
         /**
          * Utility method.
          * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
@@ -76,7 +84,6 @@ declare module bluesky.core.services {
          * @param response
          */
         private finally;
-        private tryGetFullUrl(urlInput);
         private getUrlPath(actionIsOnSameController);
         private getCurrentSessionID();
     }

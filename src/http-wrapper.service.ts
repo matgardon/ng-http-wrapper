@@ -37,6 +37,8 @@ module bluesky.core.services {
 
         //TODO MGA improve typing with angular-upload tsd etc
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        
+        buildUrlFromContext(urlInput: string): string;
     }
 
     /**
@@ -65,7 +67,7 @@ module bluesky.core.services {
         ) {
             // init core api config data on ctor
             //TODO MGA : hard coded path for CorerApiAuthCtrl to inject
-            this.initPromise = this.$http.get<ApiConfig>(this.tryGetFullUrl('CoreApiAuth/GetCoreApiConfig'))
+            this.initPromise = this.$http.get<ApiConfig>(this.buildUrlFromContext('CoreApiAuth/GetCoreApiConfig'))
                 .success((coreApiConfig) => {
                     this.apiConfig = coreApiConfig;
                 }).error((error) => {
@@ -130,6 +132,36 @@ module bluesky.core.services {
             }
         }
 
+        //TODO MGA : method too specific to OM apps context, may not work outside of it, to adapt for public use ?
+        /**
+         * Tries to parse the input url :
+         * If it seems to be a full URL, then return as is (considers it external Url) 
+         * Otherwise, tries to find the base URL of the current BlueSky app with or without the included Controller and returns the full Url 
+         * @param urlInput : TODO MGA: document different kind of urls that this method can take as input (full, partial etc)
+         */
+        public buildUrlFromContext(urlInput: string): string {
+
+            // 1 - Url starts with http:// or https:// => return as is.
+            if (urlInput.slice(0, 'http://'.length) === 'http://' ||
+                urlInput.slice(0, 'https://'.length) === 'https://') {
+                return urlInput;
+            }
+
+            // 2 - Otherwise, try to find correct controller
+
+            // Boolean used to try to determine correct full url (add / or not before the url fragment depending on if found or not)
+            var urlFragmentStartsWithSlash = urlInput.slice(0, '/'.length) === '/';
+
+            // Regex trying to determine if the input fragment contains a / between two character suites => controller given as input, otherwise, action on same controller expected
+            var controllerIsPresentRegex = /\w+\/\w+/;
+
+            var actionIsOnSameController = !controllerIsPresentRegex.test(urlInput);
+
+            var baseUrl = this.getUrlPath(actionIsOnSameController);
+
+            return baseUrl + (urlFragmentStartsWithSlash ? urlInput : ('/' + urlInput));
+        }
+
         //#endregion
 
         //#region private methods
@@ -184,7 +216,7 @@ module bluesky.core.services {
             configFull.headers = config.headers || {};
 
             if (!config.apiEndpoint) { // if not set, evaluates to false
-                configFull.url = this.tryGetFullUrl(url);
+                configFull.url = this.buildUrlFromContext(url);
             } else {
                 //TODO MGA : core api endpoint 'api/' hardcoded, to put in configFull ! should not know that here.
                 configFull.url = this.apiConfig.coreApiUrl + 'api/' + url;
@@ -266,30 +298,6 @@ module bluesky.core.services {
             if ((<any>this.$window).preventBlockUI !== undefined)
                 // TODO MGA : type casting, is it okay or not ? better approach ?
                 (<any>this.$window).preventBlockUI = false;
-        }
-
-        //TODO MGA : method to document and improve robustness + use in OE outside of angular // mutualize
-        // Tries to parse the input url :
-        // If it seems to be a full URL, then return as is (considers it external Url)
-        // Otherwise, tries to find the base URL of the current BlueSky app with or without the included Controller and returns the full Url
-        private tryGetFullUrl(urlInput: string): string {
-            // Url starts with http:// or https:// => leave as this
-            if (urlInput.slice(0, 'http://'.length) === 'http://' ||
-                urlInput.slice(0, 'https://'.length) === 'https://') {
-                return urlInput;
-            }
-
-            // Boolean used to try to determine correct full url (add / or not before the url fragment depending on if found or not)
-            var urlFragmentStartsWithSlash = urlInput.slice(0, '/'.length) === '/';
-
-            // Regex trying to determine if the input fragment contains a / between two character suites => controller given as input, otherwise, action on same controller expected
-            var controllerIsPresentRegex = /\w+\/\w+/;
-
-            var actionIsOnSameController = !controllerIsPresentRegex.test(urlInput);
-
-            var baseUrl = this.getUrlPath(actionIsOnSameController);
-
-            return baseUrl + (urlFragmentStartsWithSlash ? urlInput : ('/' + urlInput));
         }
 
         // TODO MGA : using method from Layout.js : to document to not handle duplicate code !!
