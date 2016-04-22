@@ -278,9 +278,31 @@ module bluesky.core.services {
                 response.status = 503;
             }
 
-            var message = String(response.data) + '\n Status: ' + response.status.toString();
+            var contentType = response.headers('Content-Type');
 
-            this.toaster.error('Server response error', message);
+            if (contentType && contentType.indexOf('application/json') > -1 || contentType.indexOf('text/plain') > -1) {
+
+                var message;
+
+                //TODO MGA: handle error handling more generically based on input error message contract instead of expecting specific error strcture.
+
+                //if (response.data.ModelState) {
+                //    //TODO MGA : handle this when well formatted server-side
+                //} else
+                if (response.data.Message) {
+                    message = response.data.Message;
+                } else {
+                    message = response.data;
+                }
+
+                if (response.status === 404) {
+                    this.toaster.warning('Not Found', message);
+                } else {
+                    this.toaster.error('Server response error', message + '\n Status: ' + response.status);
+                }
+            } else {
+                this.toaster.error('Internal server error', 'Status: ' + response.status);
+            }
 
             this.$log.error(response);
 
