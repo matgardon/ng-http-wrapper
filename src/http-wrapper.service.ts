@@ -357,7 +357,7 @@ module bluesky.core.services {
         //#endregion
     }
 
-    angular.module('ng.httpWrapper', ['toaster', 'ngFileUpload'])
+    angular.module('ng.httpWrapper', ['toaster', 'ngAnimate', 'ngFileUpload'])
         // done in configureHttpCall method.
         //.config(['$httpProvider', ($httpProvider: ng.IHttpProvider) => {
         //    $httpProvider.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';

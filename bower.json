@@ -24,6 +24,7 @@
   "dependencies": {
     "underscore": "1.x.x",
     "angular": "1.5.x",
+    "angular-animate": "1.5.x",
     "angularjs-toaster": "2.x.x",
     "ng-file-upload": "11.x.x"
   },
