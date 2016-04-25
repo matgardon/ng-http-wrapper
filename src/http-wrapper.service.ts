@@ -241,8 +241,7 @@ module bluesky.core.services {
 
         /**
          * Success handler
-         * TODO MGA : what is url used for ???
-         * @param url 
+         * @param url : TODO MGA remove if not logged.
          * @returns {} 
          */
         private success = <T>(url: string): (promiseCallback: ng.IHttpPromiseCallbackArg<T>) => T | ng.IPromise<any> => {
@@ -250,15 +249,19 @@ module bluesky.core.services {
             // JS trick : capture url variable inside closure scope to store it for callback which cannot be called with 2 arguments
             return (promiseCallback: ng.IHttpPromiseCallbackArg<T>): T | ng.IPromise<any> => {
 
-                if (!promiseCallback || !promiseCallback.data) {
-                    //TODO MGA: think about this ... May not be accurate ? or may not be an error if return type is null in case no data found
-                    //response.status = 503;
-                    this.$log.error(promiseCallback);
-                    this.toaster.warning('Unexpected response from the server', 'Call successfull, but no data found');
-
-                    //TODO MGA : find out how to handle that as to expectd return type ?
-                    return this.$q.reject(promiseCallback); // Reject promise if not well-formed data
+                if (!promiseCallback) {
+                    this.$log.error('Unexpected $http error, no return promise object could be found.');
+                    this.toaster.error('Unexpected behavior','Please contact your local support team.');
+                    return this.$q.reject(promiseCallback); // Reject promise
                 }
+
+                //TODO MGA: handle when API is fixed. See http://stackoverflow.com/questions/11746894/what-is-the-proper-rest-response-code-for-a-valid-request-but-an-empty-data
+                //if ((promiseCallback.data === null || promiseCallback.data === undefined) && promiseCallback.status !== 204) {
+                //    this.$log.error('Unexpected response from the server, expected response data but none found.');
+                //    this.toaster.warning('Unexpected response', 'Please contact your local support team.');
+                //    return this.$q.reject(promiseCallback); // Reject promise if not well-formed data
+                //}
+                //TODO MGA: same behavior also on a GET request ? if request is GET and response is 200 with no data, return error ? (pass in parameter request context to log this error).
 
                 this.$log.debug(promiseCallback);
 
@@ -273,6 +276,8 @@ module bluesky.core.services {
          */
         private error = (response: ng.IHttpPromiseCallbackArg<any>): ng.IPromise<ng.IHttpPromiseCallbackArg<any>> => { // do something on error
 
+            // We suppose in case of no response that the srv didn't send any response.
+            // TODO MGA: may also be a fault in internal $http / ajax client side lib, to distinguish.
             if (!response || !response.data) {
                 response.data = 'Server not responding';
                 response.status = 503;
@@ -295,6 +300,7 @@ module bluesky.core.services {
                     message = response.data;
                 }
 
+                //TODO MGA: handle more response codes gracefully.
                 if (response.status === 404) {
                     this.toaster.warning('Not Found', message);
                 } else {
