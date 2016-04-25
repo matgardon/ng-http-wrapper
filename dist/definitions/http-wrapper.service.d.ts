@@ -68,8 +68,7 @@ declare module bluesky.core.services {
         private configureHttpCall;
         /**
          * Success handler
-         * TODO MGA : what is url used for ???
-         * @param url
+         * @param url : TODO MGA remove if not logged.
          * @returns {}
          */
         private success;
