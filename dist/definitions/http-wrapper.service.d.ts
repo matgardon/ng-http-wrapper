@@ -1,4 +1,4 @@
-declare module bluesky.core.services {
+declare namespace bluesky.core.services {
     import ApiConfig = bluesky.core.models.ApiConfig;
     interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {
         /**

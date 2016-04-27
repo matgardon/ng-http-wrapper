@@ -1,4 +1,4 @@
-declare module bluesky.core.models {
+declare namespace bluesky.core.models {
     /**
      * TODO MGA : export an interface too ?
      */

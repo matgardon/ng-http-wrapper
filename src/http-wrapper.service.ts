@@ -1,5 +1,5 @@
 ﻿///<reference path="../typings/tsd.d.ts" />
-module bluesky.core.services {
+namespace bluesky.core.services {
 
     import ApiConfig = bluesky.core.models.ApiConfig;
 
@@ -211,7 +211,7 @@ module bluesky.core.services {
             if (config.apiEndpoint && (!this.apiConfig ||
                 !this.apiConfig.jwtToken ||
                 !this.apiConfig.currentUserRole)) {
-                this.$log.error('[InternalError] [' + url + '] - coreApi call intended without necessary capi credentials. Aborting.');
+                this.$log.error(`[InternalError] [${configFull.method} / ${url}] - coreApi call intended without necessary capi credentials. Aborting.`);
                 return null;
             }
 
@@ -249,7 +249,7 @@ module bluesky.core.services {
 
             // JS trick : capture url variable inside closure scope to store it for callback which cannot be called with 2 arguments
             if (!httpPromise) {
-                this.$log.error('[HTTP] [' + httpPromise.config.url + '] Unexpected $http error, no return promise object could be found.');
+                this.$log.error(`[HTTP ${httpPromise.config.method}] [${httpPromise.config.url}] Unexpected $http error, no return promise object could be found.`);
                 this.toaster.error('Unexpected behavior', 'Please contact your local support team.');
                 return this.$q.reject(httpPromise); // Reject promise
             }
@@ -263,7 +263,7 @@ module bluesky.core.services {
             //TODO MGA: same behavior also on a GET request ? if request is GET and response is 200 with no data, return error ? (pass in parameter request context to log this error).
 
             //TODO MGA: get full url of request
-            this.$log.debug('[HTTP] [' + httpPromise.config.url + ']', httpPromise);
+            this.$log.debug(`[HTTP ${httpPromise.config.method}] [${httpPromise.config.url}]`, httpPromise);
 
             return httpPromise.data; // return only the data expected for caller
         }
@@ -273,48 +273,48 @@ module bluesky.core.services {
          * @param httpPromise 
          * @returns {} 
          */
-        private error = (httpPromise: ng.IHttpPromiseCallbackArg<any>) : ng.IPromise<ng.IHttpPromiseCallbackArg<any>> => { // do something on error
+        private error = (httpPromise: ng.IHttpPromiseCallbackArg<any>): ng.IPromise<ng.IHttpPromiseCallbackArg<any>> => { // do something on error
 
-                // We suppose in case of no response that the srv didn't send any response.
-                // TODO MGA: may also be a fault in internal $http / ajax client side lib, to distinguish.
-                if (!httpPromise || !httpPromise.data) {
-                    httpPromise.data = 'Server not responding';
-                    httpPromise.status = 503;
-                }
+            // We suppose in case of no response that the srv didn't send any response.
+            // TODO MGA: may also be a fault in internal $http / ajax client side lib, to distinguish.
+            if (!httpPromise || !httpPromise.data) {
+                httpPromise.data = 'Server not responding';
+                httpPromise.status = 503;
+            }
 
-                var contentType = httpPromise.headers('Content-Type');
+            var contentType = httpPromise.headers('Content-Type');
 
-                if (contentType && contentType.indexOf('application/json') > -1 || contentType.indexOf('text/plain') > -1) {
+            if (contentType && (contentType.indexOf('application/json') > -1 || contentType.indexOf('text/plain') > -1)) {
 
-                    var message;
+                var message;
 
-                    //TODO MGA: handle error handling more generically based on input error message contract instead of expecting specific error strcture.
+                //TODO MGA: handle error handling more generically based on input error message contract instead of expecting specific error strcture.
 
-                    //if (response.data.ModelState) {
-                    //    //TODO MGA : handle this when well formatted server-side
-                    //} else
-                    if (httpPromise.data.Message) {
-                        message = httpPromise.data.Message;
-                    } else {
-                        message = httpPromise.data;
-                    }
-
-                    //TODO MGA: handle more response codes gracefully.
-                    if (httpPromise.status === 404) {
-                        this.toaster.warning('Not Found', message);
-                    } else {
-                        this.toaster.error('Server response error', message + '\n Status: ' + httpPromise.status);
-                    }
+                //if (response.data.ModelState) {
+                //    //TODO MGA : handle this when well formatted server-side
+                //} else
+                if (httpPromise.data.Message) {
+                    message = httpPromise.data.Message;
                 } else {
-                    this.toaster.error('Internal server error', 'Status: ' + httpPromise.status);
+                    message = httpPromise.data;
                 }
 
-                //TODO MGA: get full url of request
-                this.$log.error('[HTTP] [' + httpPromise.config.url + ']', httpPromise);
+                //TODO MGA: handle more response codes gracefully.
+                if (httpPromise.status === 404) {
+                    this.toaster.warning('Not Found', message);
+                } else {
+                    this.toaster.error('Server response error', message + '\n Status: ' + httpPromise.status);
+                }
+            } else {
+                this.toaster.error('Internal server error', 'Status: ' + httpPromise.status);
+            }
 
-                // We don't recover from error, so we propagate it : below handlers have the choice of reading the error with an error handler or not. See $q promises behavior here : https://github.com/kriskowal/q
-                // This behavior is desired so that we show error inside specific server communication modals at specific places in the app, otherwise show a global alert message, or even do not show anything if not necessary (do not ad an error handler in below handlers of this promise).
-                return this.$q.reject(httpPromise);
+            //TODO MGA: get full url of request
+            this.$log.error(`[HTTP ${httpPromise.config.method}] [${httpPromise.config.url}]`, httpPromise);
+
+            // We don't recover from error, so we propagate it : below handlers have the choice of reading the error with an error handler or not. See $q promises behavior here : https://github.com/kriskowal/q
+            // This behavior is desired so that we show error inside specific server communication modals at specific places in the app, otherwise show a global alert message, or even do not show anything if not necessary (do not ad an error handler in below handlers of this promise).
+            return this.$q.reject(httpPromise);
         }
 
         /**
