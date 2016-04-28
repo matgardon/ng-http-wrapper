@@ -5,11 +5,19 @@ var gulp = require('gulp'),
     sourcemaps = require('gulp-sourcemaps'),
     tslint = require('gulp-tslint'),
     del = require('del'),
-    merge = require('merge2');
+    merge = require('merge2'),
+    concat = require('gulp-concat'),
+    uglify = require('gulp-uglify'),
+    rename = require('gulp-rename'),
+    ngAnnotate = require('gulp-ng-annotate');
+
+
+
 
 var tsProject = ts.createProject('tsconfig.json');
 
-var tsSrc = 'src/**/*.ts';
+var tsSrc = 'src/**/*.ts',
+    tsExternalDefinitions = 'typings/**/*.d.ts';
 
 gulp.task('clean-ts', function (cb) {
     // delete the files
@@ -23,12 +31,19 @@ gulp.task('ts-lint', function () {
 });
 
 gulp.task('compile-ts', function () {
-    var tsResults = gulp.src([tsSrc])
+    var tsResults = gulp.src([tsSrc, tsExternalDefinitions])
                         .pipe(sourcemaps.init())// This means sourcemaps will be generated
                         .pipe(ts(tsProject));
     return merge([
-        tsResults.dts.pipe(gulp.dest('dist/definitions')),
-        tsResults.js.pipe(sourcemaps.write())// Now the sourcemaps are added to the .js file
+        tsResults.dts.pipe(concat('ng-http-wrapper.d.ts'))
+                     .pipe(gulp.dest('dist/definitions')),
+                     
+        tsResults.js.pipe(sourcemaps.write())// Now the sourcemaps are added to the .js file //TODO MGA: sourcemaps too early ? or keep file separation in sourcemaps ?
+                    //.pipe(concat('ng-http-wrapper.min.js'))
+                    .pipe(concat('ng-http-wrapper.js'))//Comment uglify to get un-minified sources
+                    .pipe(ngAnnotate())//TODO MGA : if done now, breaks sourcemaps ?
+                    //.pipe(rename({ suffix: '.min' }))
+                    //.pipe(uglify()) //Uncomment to activate minification TODO MGA: minification breaks ng-annotate & source-mappings. TOFIX.
                     .pipe(gulp.dest('dist/js'))
     ]);
 });

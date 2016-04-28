@@ -1,5 +1,4 @@
-﻿///<reference path="../typings/tsd.d.ts" />
-namespace bluesky.core.services {
+﻿namespace bluesky.core.services {
 
     import ApiConfig = bluesky.core.models.ApiConfig;
 

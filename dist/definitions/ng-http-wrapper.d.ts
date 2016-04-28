@@ -1,3 +1,15 @@
+declare namespace bluesky.core.models {
+    /**
+     * TODO MGA : export an interface too ?
+     */
+    class ApiConfig {
+        coreApiUrl: string;
+        jwtToken: string;
+        currentUserRole: string;
+        constructor(coreApiUrl: string, jwtToken: string, currentUserRole: string);
+    }
+}
+
 declare namespace bluesky.core.services {
     import ApiConfig = bluesky.core.models.ApiConfig;
     interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {

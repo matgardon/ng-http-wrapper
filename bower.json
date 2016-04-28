@@ -7,13 +7,11 @@
   ],
   "license": "MIT",
   "main": [
-    "dist/js/api-config.model.js",
-    "dist/js/http-wrapper.service.js"
+    "dist/js/ng-http-wrapper.js"
   ],
   "typescript": {
     "definition": [
-      "dist/definitions/api-config.model.d.ts", 
-      "dist/definitions/http-wrapper.service.d.ts" 
+      "dist/definitions/ng-http-wrapper.d.ts"
     ]
   },
   "ignore": [
