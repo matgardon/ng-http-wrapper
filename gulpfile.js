@@ -11,17 +11,14 @@ var gulp = require('gulp'),
     rename = require('gulp-rename'),
     ngAnnotate = require('gulp-ng-annotate');
 
-
-
-
 var tsProject = ts.createProject('tsconfig.json');
 
 var tsSrc = 'src/**/*.ts',
     tsExternalDefinitions = 'typings/**/*.d.ts';
 
-gulp.task('clean-ts', function (cb) {
+gulp.task('clean', function (cb) {
     // delete the files
-    del(['dist/**/*.js', 'dist/**/*.js.map', 'dist/**/*.d.ts'], cb);
+    del(['dist/**/*.*'], cb);
 });
 
 //TODO MGA: fix ts-lint task
@@ -38,16 +35,15 @@ gulp.task('compile-ts', function () {
         tsResults.dts.pipe(concat('ng-http-wrapper.d.ts'))
                      .pipe(gulp.dest('dist/definitions')),
                      
-        tsResults.js.pipe(sourcemaps.write())// Now the sourcemaps are added to the .js file //TODO MGA: sourcemaps too early ? or keep file separation in sourcemaps ?
-                    //.pipe(concat('ng-http-wrapper.min.js'))
-                    .pipe(concat('ng-http-wrapper.js'))//Comment uglify to get un-minified sources
-                    .pipe(ngAnnotate())//TODO MGA : if done now, breaks sourcemaps ?
+        tsResults.js.pipe(concat('ng-http-wrapper.js'))//Comment uglify to get un-minified sources
+                    .pipe(ngAnnotate())//TODO MGA : check if it breaks sourcemaps ?
+                    //.pipe(uglify()) //Uncomment to activate minification
+                    .pipe(sourcemaps.write())// Now the sourcemaps are added to the .js file //TODO MGA: sourcemaps keeps track of original .ts files + the concatenated .js file : how to only have the 2 original ts files ?
                     //.pipe(rename({ suffix: '.min' }))
-                    //.pipe(uglify()) //Uncomment to activate minification TODO MGA: minification breaks ng-annotate & source-mappings. TOFIX.
                     .pipe(gulp.dest('dist/js'))
     ]);
 });
 
 //TODO MGA: fix ts-lint step
-gulp.task('default', ['clean-ts', 'compile-ts']);
+gulp.task('default', ['clean', 'compile-ts']);
 //gulp.task('default', ['ts-lint', 'clean-ts', 'compile-ts']);
