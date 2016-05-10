@@ -10,8 +10,19 @@ declare namespace bluesky.core.models {
     }
 }
 
+declare namespace bluesky.core.models {
+    class FileContent {
+        name: string;
+        size: number;
+        type: string;
+        content: ArrayBuffer;
+        constructor(name: string, size: number, type: string, content: ArrayBuffer);
+    }
+}
+
 declare namespace bluesky.core.services {
     import ApiConfig = bluesky.core.models.ApiConfig;
+    import FileContent = bluesky.core.models.FileContent;
     interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {
         /**
          * main API endpoint to use as default one if url is not full.
@@ -34,6 +45,7 @@ declare namespace bluesky.core.services {
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        getFile(url: string, config?: IHttpWrapperConfig): ng.IPromise<FileContent>;
         buildUrlFromContext(urlInput: string): string;
     }
     /**
@@ -55,6 +67,16 @@ declare namespace bluesky.core.services {
         post<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         put<T>(url: string, data: any, config?: IHttpWrapperConfig): ng.IPromise<T>;
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+        /**
+         * This method is used to download a file in the form of a byte-stream from an endpoint and wrap it into a FileContent object with name, type & size properties read from the HTTP response headers of the serveur.
+         * It is the responsability of the consumer to do something with the wrapped byteArray (for example download the file, or show it inside the webPage etc).
+         * @param url
+         * @param expectedName
+         * @param expectedSize
+         * @param expectedType
+         * @param config
+         */
+        getFile(url: string, config?: IHttpWrapperConfig): ng.IPromise<FileContent>;
         /**
          * Tries to parse the input url :
          * If it seems to be a full URL, then return as is (considers it external Url)
@@ -79,16 +101,19 @@ declare namespace bluesky.core.services {
         */
         private configureHttpCall;
         /**
-         * Success handler
-         * @returns {}
+         * Success handler.
+         * Captures the input parameters at the moment of its declaration & return the real handler to be called upon promise completion.
+         * Input parameters:
+         *  - callingConfig: configuration used to make the ajax call, in case the returned promise is null/empty and doesn't contain necessary data for debugging.
+         *  - getCompleteResponseObject: flag indication if we must return the full response object along with headers and status or only the inner data. By default & if not specified, only returns inner data.
          */
-        private success;
+        private onSuccess;
         /**
          * Error handler
          * @param httpPromise
          * @returns {}
          */
-        private error;
+        private onError;
         /**
          * Function called at the end of an ajax call, regardless of it's success or failure.
          * @param response
@@ -96,5 +121,10 @@ declare namespace bluesky.core.services {
         private finally;
         private getUrlPath(actionIsOnSameController);
         private getCurrentSessionID();
+        /**
+         * Trim the content-disposition header to return only the filename.
+         * @param contentDispositionHeader
+         */
+        private getFileNameFromHeaderContentDisposition(contentDispositionHeader);
     }
 }

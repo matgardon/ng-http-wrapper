@@ -1,6 +1,7 @@
 ﻿namespace bluesky.core.services {
 
     import ApiConfig = bluesky.core.models.ApiConfig;
+    import FileContent = bluesky.core.models.FileContent;
 
     export interface IHttpWrapperConfig extends ng.IRequestShortcutConfig {
         /**
@@ -36,6 +37,8 @@
 
         //TODO MGA improve typing with angular-upload tsd etc
         upload<T>(url: string, file: File, config?: IHttpWrapperConfig): ng.IPromise<T>;
+
+        getFile(url: string, config?: IHttpWrapperConfig): ng.IPromise<FileContent>;
 
         buildUrlFromContext(urlInput: string): string;
     }
@@ -126,10 +129,52 @@
                     //TODO MGA : not safe hard cast
                     //TODO MGA : behavior duplication with this.ajax, not DRY, to improve
                     return this.Upload.upload<T>(<ng.angularFileUpload.IFileUploadConfigFile>this.configureHttpCall(HttpMethod.POST, url, config))
-                        .then<T>(this.success, this.error, config.uploadProgress) //TODO MGA : uploadProgress callback ok ?
+                        .then<T>(this.onSuccess, this.onError, config.uploadProgress) //TODO MGA : uploadProgress callback ok ?
                         .finally(this.finally);
                 });
             }
+        }
+
+        /**
+         * This method is used to download a file in the form of a byte-stream from an endpoint and wrap it into a FileContent object with name, type & size properties read from the HTTP response headers of the serveur.
+         * It is the responsability of the consumer to do something with the wrapped byteArray (for example download the file, or show it inside the webPage etc).
+         * @param url
+         * @param expectedName
+         * @param expectedSize
+         * @param expectedType
+         * @param config
+         */
+        getFile(url: string, config?: IHttpWrapperConfig): ng.IPromise<FileContent> {
+            return this.initPromise.then(() => {
+
+                var angularHttpConfig = this.configureHttpCall(HttpMethod.GET, url, config);
+
+                // specifically expect raw response type, otherwise byte stream responses are corrupted.
+                angularHttpConfig.responseType = 'arraybuffer';
+
+                //Expected ArrayBuffer response = byte array
+                return this.$http<ArrayBuffer>(angularHttpConfig)
+                    .then<FileContent>((httpResponse) => {
+
+                        //benefit from successCallback validation before continuing
+                        var arrayBuffer = this.onSuccess<ArrayBuffer>(httpResponse);
+
+                        //TODO MGA: promise rejection vs. return null ?
+                        if (!arrayBuffer) return null; //stop processing if unable to retrieve byte array
+
+                        //read file info from response-headers
+                        var fileContent: FileContent = {
+                            name: this.getFileNameFromHeaderContentDisposition(httpResponse.headers('content-disposition')) || null,
+                            size: Number(httpResponse.headers('content-length')) || 0,
+                            type: httpResponse.headers('content-type') || 'application/octet-stream',
+                            content: arrayBuffer
+                        };
+
+                        return fileContent;
+
+                    }, this.onError)
+                    .finally(this.finally);
+            });
         }
 
         //TODO MGA : method too specific to OM apps context, may not work outside of it, to adapt for public use ?
@@ -171,12 +216,13 @@
          * Main caller that all wrapper calls (get, delete, post, put) must use to share common behavior.
          * @param config
          */
-        private ajax<T>(method: HttpMethod, url: string, config?: IHttpWrapperConfig) {
+        private ajax<T>(method: HttpMethod, url: string, config?: IHttpWrapperConfig): ng.IPromise<T> {
             //TODO MGA : make sure initPromise resolve automatically without overhead once first call sucessfull.
             //TODO MGA : do not block if not call to internal API (initCall)
             return this.initPromise.then(() => {
-                return this.$http<T>(this.configureHttpCall(method, url, config))
-                    .then<T>(this.success, this.error)
+                var angularHttpConfig = this.configureHttpCall(method, url, config);
+                return this.$http<T>(angularHttpConfig)
+                    .then<T>(this.onSuccess, this.onError)
                     .finally(this.finally);
             });
         }
@@ -240,17 +286,22 @@
             return configFull;
         }
 
-        /**
-         * Success handler
-         * @returns {} 
-         */
-        private success = <T>(httpPromise: ng.IHttpPromiseCallbackArg<T>): T | ng.IPromise<any> => {
 
-            // JS trick : capture url variable inside closure scope to store it for callback which cannot be called with 2 arguments
+        /**
+         * Success handler.
+         * Captures the input parameters at the moment of its declaration & return the real handler to be called upon promise completion.
+         * Input parameters:
+         *  - callingConfig: configuration used to make the ajax call, in case the returned promise is null/empty and doesn't contain necessary data for debugging.
+         *  - getCompleteResponseObject: flag indication if we must return the full response object along with headers and status or only the inner data. By default & if not specified, only returns inner data.
+         */
+        private onSuccess = <T>(httpPromise: ng.IHttpPromiseCallbackArg<T>): T => {
+
             if (!httpPromise) {
-                this.$log.error(`[HTTP ${httpPromise.config.method}] [${httpPromise.config.url}] Unexpected $http error, no return promise object could be found.`);
+                this.$log.error(`[HTTP no-response] Unexpected $http error, no response promise returned.`);
                 this.toaster.error('Unexpected behavior', 'Please contact your local support team.');
-                return this.$q.reject(httpPromise); // Reject promise
+                return null;
+                //TODO MGA: handle multi-type return in case of rejection or do something else ? this method is currently used synchronously without promise waiting.
+                //return this.$q.reject(httpPromise); // Reject promise
             }
 
             //TODO MGA: handle when API is fixed. See http://stackoverflow.com/questions/11746894/what-is-the-proper-rest-response-code-for-a-valid-request-but-an-empty-data
@@ -264,7 +315,8 @@
             //TODO MGA: get full url of request
             this.$log.debug(`[HTTP ${httpPromise.config.method}] [${httpPromise.config.url}]`, httpPromise);
 
-            return httpPromise.data; // return only the data expected for caller
+            // return only the data expected for caller
+            return httpPromise.data;
         }
 
         /**
@@ -272,7 +324,7 @@
          * @param httpPromise 
          * @returns {} 
          */
-        private error = (httpPromise: ng.IHttpPromiseCallbackArg<any>): ng.IPromise<ng.IHttpPromiseCallbackArg<any>> => { // do something on error
+        private onError = (httpPromise: ng.IHttpPromiseCallbackArg<any>): ng.IPromise<ng.IHttpPromiseCallbackArg<any>> => { // do something on error
 
             // We suppose in case of no response that the srv didn't send any response.
             // TODO MGA: may also be a fault in internal $http / ajax client side lib, to distinguish.
@@ -329,7 +381,7 @@
 
         // TODO MGA : using method from Layout.js : to document to not handle duplicate code !!
         //TODO MGA : make it capable of handling full URLs outside of OE : do not use ?? how to ?
-        private getUrlPath(actionIsOnSameController) {
+        private getUrlPath(actionIsOnSameController): string {
 
             var baseUrlRegex = /(\/\w+\/\(S\(\w+\)\))\/\w+/;
             var url = this.$window.location.pathname;
@@ -351,7 +403,7 @@
         }
 
         //TODO MGA: OM-specific ASP MVC code, not used ATM, to remove
-        private getCurrentSessionID() {
+        private getCurrentSessionID(): string {
 
             //TODO MGA : magic regexp to fetch SessionID in URL, to store elsewhere !
             var sessionRegex = /https:\/\/[\w.]+\/[\w.]+\/(\(S\(\w+\)\))\/.*/;
@@ -366,19 +418,31 @@
             var regexpArray = sessionRegex.exec(path);
 
             if (!regexpArray) {
-                this.$log.error("Unable to recognized searched pattern in current url location to retrieve sessionID.");
-                return "";
+                this.$log.error('Unable to recognized searched pattern in current url location to retrieve sessionID.');
+                return '';
             }
             if (regexpArray.length === 1) {
-                this.$log.error("Unable to find sessionID in searched pattern in current url.");
-                return "";
+                this.$log.error('Unable to find sessionID in searched pattern in current url.');
+                return '';
             }
             if (regexpArray.length > 2) {
-                this.$log.error("Too many matches found for the sessionID search in the current url.");
-                return "";
+                this.$log.error('Too many matches found for the sessionID search in the current url.');
+                return '';
             }
 
             return regexpArray[1];
+        }
+
+        /**
+         * Trim the content-disposition header to return only the filename.
+         * @param contentDispositionHeader
+         */
+        private getFileNameFromHeaderContentDisposition(contentDispositionHeader: string): string {
+            if (!contentDispositionHeader) return null;
+
+            var result = contentDispositionHeader.split(';')[1].trim().split('=')[1];
+
+            return result.replace(/"/g, '');
         }
 
         //#endregion
