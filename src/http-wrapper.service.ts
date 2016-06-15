@@ -279,7 +279,7 @@
                 configFull.headers['X-Requested-With'] = 'XMLHttpRequest';
 
             //TODO MGA: OE specific code, to remove
-            if ((<any>this.$window).preventBlockUI !== undefined)
+            if ((<any>this.$window).block_UI !== undefined)
                 // TODO MGA : type casting, is it okay or not ? better approach ?
                 (<any>this.$window).preventBlockUI = true;
 
@@ -374,7 +374,7 @@
          */
         private finally = (): void => {
             //TODO MGA: OE-specific code
-            if ((<any>this.$window).preventBlockUI !== undefined)
+            if ((<any>this.$window).block_UI !== undefined)
                 // TODO MGA : type casting, is it okay or not ? better approach ?
                 (<any>this.$window).preventBlockUI = false;
         }

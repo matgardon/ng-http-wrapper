@@ -1,7 +1,7 @@
 {
   "name": "ng-http-wrapper",  
   "description": "Simple http wrapper used in most of my projects to factorize common behaviors.",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "authors": [
     "Mathis Gardon"
   ],
