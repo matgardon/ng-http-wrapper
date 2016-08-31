@@ -337,16 +337,16 @@
 
             if (contentType && (contentType.indexOf('application/json') > -1 || contentType.indexOf('text/plain') > -1)) {
 
-                var message;
+                var message: string = ""; //default message
 
                 //TODO MGA: handle error handling more generically based on input error message contract instead of expecting specific error strcture.
 
                 //if (response.data.ModelState) {
                 //    //TODO MGA : handle this when well formatted server-side
                 //} else
-                if (httpPromise.data.Message) {
+                if (httpPromise.data.Message && angular.isString(httpPromise.data.Message)) {
                     message = httpPromise.data.Message;
-                } else {
+                } else if (angular.isString(httpPromise.data)) {
                     message = httpPromise.data;
                 }
 
@@ -381,7 +381,7 @@
 
         // TODO MGA : using method from Layout.js : to document to not handle duplicate code !!
         //TODO MGA : make it capable of handling full URLs outside of OE : do not use ?? how to ?
-        private getUrlPath(actionIsOnSameController): string {
+        private getUrlPath(actionIsOnSameController: boolean): string {
 
             var baseUrlRegex = /(\/\w+\/\(S\(\w+\)\))\/\w+/;
             var url = this.$window.location.pathname;

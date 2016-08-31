@@ -16,9 +16,9 @@ var tsProject = ts.createProject('tsconfig.json');
 var tsSrc = 'src/**/*.ts',
     tsExternalDefinitions = 'typings/**/*.d.ts';
 
-gulp.task('clean', function (cb) {
+gulp.task('clean', function () {
     // delete the files
-    del(['dist/**/*.*'], cb);
+    return del(['dist/**/*.*']);
 });
 
 //TODO MGA: fix ts-lint task
@@ -27,7 +27,7 @@ gulp.task('ts-lint', function () {
     //return gulp.src(tsSrc).pipe(tslint({ configuration: require("./tslint.json")})).pipe(tslint.report('prose'));
 });
 
-gulp.task('compile-ts', function () {
+gulp.task('compile-ts', ['clean'], function () {
     var tsResults = gulp.src([tsSrc, tsExternalDefinitions])
                         .pipe(sourcemaps.init())// This means sourcemaps will be generated
                         .pipe(ts(tsProject));

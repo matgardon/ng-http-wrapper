@@ -2,17 +2,22 @@
   "compilerOptions": {
     //"emitDecoratorMetadata": true,
     //"experimentalDecorators": true,
-    "module": "system",
     //"rootDir": "src",
-    "target": "es5",
     //"outDir": "dist",
-    "declaration": true,
-    "noExternalResolve": true //we do not use ///reference paths, so we must provide the compiler with external .d.ts ourselves. This speeds up compilation.
-    //"sourceMap": true
+    "noImplicitAny": true, //Raise error on expressions and declarations with an implied ‘any’ type.
+    //"module": "system", //TODO MGA: activate module strategy
+    "target": "es5",
+    "declaration": true, //used by gulp-ts
+    "noExternalResolve": true, //we do not use ///reference paths, so we must provide the compiler with external .d.ts ourselves. This speeds up compilation.
+    "sourceMap": false //handled by gulp-sourcemaps
   },
   "exclude": [
     "node_modules",
     "bower_components",
-    "dist"
+    "dist",
+    //VS Specific folders
+    ".vs",
+    "bin",
+    "obj"
   ]
 }
