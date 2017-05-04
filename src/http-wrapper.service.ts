@@ -380,23 +380,35 @@
         }
 
         // TODO MGA : using method from Layout.js : to document to not handle duplicate code !!
-        //TODO MGA : make it capable of handling full URLs outside of OE : do not use ?? how to ?
+        //TODO MGA: unrobust, needs solid refacto to make it more generic when on origin domain !
         private getUrlPath(actionIsOnSameController: boolean): string {
 
-            var baseUrlRegex = /(\/\w+\/\(S\(\w+\)\))\/\w+/;
+            var baseUrlOmAppsRegex = /(\/\w+\/\(S\(\w+\)\))\/\w*/;
+            var baseUrlAspAppsRegex = /(\/\w+)\/\w*/;
+
             var url = this.$window.location.pathname;
-            var baseUrlMatches = baseUrlRegex.exec(url);
+            var baseUrlOmAppsMatches = baseUrlOmAppsRegex.exec(url);
+            var baseUrlAspAppsMatches = baseUrlAspAppsRegex.exec(url);
 
-            if (baseUrlMatches.length && baseUrlMatches.length === 2) {
+            var baseUrlWithControllerName: string = null;
+            var baseUrl: string = null;
 
-                var baseUrlWithControllerName = baseUrlMatches[0];
-                var baseUrl = baseUrlMatches[1];
+            // 2 matches = regex matches + the capturing group
+            if (baseUrlOmAppsMatches && baseUrlOmAppsMatches.length && baseUrlOmAppsMatches.length === 2) {
 
-                if (actionIsOnSameController) {
-                    return baseUrlWithControllerName;
-                } else {
-                    return baseUrl;
-                }
+                baseUrlWithControllerName = baseUrlOmAppsMatches[0];
+                baseUrl = baseUrlOmAppsMatches[1];
+            }
+
+            if (baseUrlAspAppsMatches && baseUrlAspAppsMatches.length && baseUrlAspAppsMatches.length === 2) {
+                baseUrlWithControllerName = baseUrlAspAppsMatches[0];
+                baseUrl = baseUrlAspAppsMatches[1];
+            }
+
+            if (actionIsOnSameController && baseUrlWithControllerName) {
+                return baseUrlWithControllerName;
+            } else if (baseUrl) {
+                return baseUrl;
             }
 
             return '';
