@@ -400,7 +400,7 @@
                 baseUrl = baseUrlOmAppsMatches[1];
             }
 
-            if (baseUrlAspAppsMatches && baseUrlAspAppsMatches.length && baseUrlAspAppsMatches.length === 2) {
+            else if (baseUrlAspAppsMatches && baseUrlAspAppsMatches.length && baseUrlAspAppsMatches.length === 2) {
                 baseUrlWithControllerName = baseUrlAspAppsMatches[0];
                 baseUrl = baseUrlAspAppsMatches[1];
             }
